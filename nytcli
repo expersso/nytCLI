@@ -1,0 +1,36 @@
+#!/bin/bash -k
+
+while getopts s:l:a: opts; do
+    case ${opts} in
+        s) SECTION=${OPTARG} ;;
+        l) LIMIT=${OPTARG} ;;
+        a) API=${OPTARG} ;;
+    esac
+done
+
+URL="http://api.nytimes.com/svc/news/v3/content/all/${SECTION}/all.xml?limit=${LIMIT}&api-key=${API}"
+
+wget $URL -qrO- | \
+xmlstarlet fo -t | \
+grep -P \<\(title\|abstract\)\> | \
+sed -r "s.</?[a-z]*>..g" | \
+awk '
+
+BEGIN {
+    # Create horizontal ruler
+    RULER="-"
+    for(i = 1; i<= 77; i++)
+        RULER = RULER "-"
+    # Variable with title color (yellow on black)
+    TEXTCOL="\033[0;93m\033[40m"
+    # Variable to reset text color
+    NC="\033[0m"
+}
+# Strip leading whitespace, print title
+NR % 2 { gsub(/^[ \t]*/, ""); print TEXTCOL $0 NC }
+
+# Strip leading whitespace, print abstract and horizontal ruler
+!(NR % 2) { gsub(/^[ \t]*/, ""); print $0 "\n" RULER }
+
+# Format line to 78 characters
+' | fmt -s -w 78
